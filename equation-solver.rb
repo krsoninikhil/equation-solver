@@ -9,13 +9,11 @@ def delete_zero(matrix, n, type, first, last, order)
 			matrix = matrix.transpose
 			matrix.delete_at(i)
 			matrix = matrix.transpose
-			print first.size; print last.size; print i;
 			if type == 'col'
 				first << order[i]
 			else
 				last << order[i]
 			end
-			p order[i]
 			order.delete_at(i)
 			i = -1
 			n -= 1
@@ -46,7 +44,7 @@ const = []
 # initial guess
 init = []
 # input from file
-input = IO.readlines('input-graph-theory-3.txt')
+input = IO.readlines('sample-input-2.txt')
 n = input[0].to_i
 n.times do |i|
 	cof[i] = input[1+i].split(' ')
@@ -119,8 +117,6 @@ first = []
 last = []
 # deleting rows and columns corresponding to a column with all elements zero
 reduced_mat = delete_zero(boolean_matrix, n, 'col', first, last, order)
-# p first
-# p last
 
 puts 'reduced matrix: '
 reduced_mat.each do |eq|
