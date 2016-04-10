@@ -140,7 +140,6 @@ soln = []
 first.each do |i|
 	cof[i].each do |coefficient|
 		if coefficient.to_f != 0
-			puts "#{i} #{coefficient} #{const[i]}"
 			soln << const[i]/coefficient.to_f
 		end
 	end
