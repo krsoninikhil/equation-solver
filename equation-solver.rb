@@ -1,49 +1,7 @@
+require 'json'
 require 'matrix'
-
-def delete_zero(matrix, n, type, first, last, order)
-	i = 0
-	to_delete = []
-	max = n
-	while(i<max)		
-		# puts "#{i} #{matrix[i].count('0')}"
-		if matrix[i].count(0) == n
-			if type == 'col'
-				first << order[i]
-				to_delete << i
-			else
-				last << order[i]
-				to_delete << i
-			end
-			matrix.delete_at(i)
-			order.delete_at(i)
-			max -= 1
-		else
-			i += 1
-		end
-	end
-	# zero col corresponding rows are deleted in a different loop as deleting them
-	# in same loop might form additional zero cols which would disturb the order
-	matrix = matrix.transpose
-	to_delete.each do |j|
-		matrix.delete_at(j)
-	end
-	n = max
-	before_rows_deletion = matrix.size
-	# delete r and c corresponding to the rows containing all zeros
-	# if we have just deleted r and c corresponding to a zero column
-	if type == 'col'
-		matrix = delete_zero(matrix, before_rows_deletion, 'row', first, last, order)
-	end
-	# again check for column deletion
-	# currently the matrix is in its transpose form
-	if matrix.size < before_rows_deletion
-		matrix = delete_zero(matrix, matrix.size, 'col', first, last, order)
-	else
-		matrix = matrix.transpose
-	end
-
-	return matrix
-end
+# requiring helper file giving relative path
+require_relative 'helper.rb'
 
 # occurence matrix
 occ = []
@@ -54,7 +12,7 @@ const = []
 # initial guess
 init = []
 # input from file
-input = IO.readlines('sample-input-3.txt')
+input = IO.readlines('sample-input.txt')
 n = input[0].to_i
 n.times do |i|
 	cof[i] = input[1+i].split(' ')
@@ -88,7 +46,6 @@ puts 'occurence matrix: '
 occ.each do |eq|
  p eq
 end
-
 
 # getting order of equations after rearranging rows
 ## finding equations index which has j-th variable present in it
@@ -125,10 +82,11 @@ end
 # solving order
 first = []
 last = []
+# the array order will be modified inside the fn call, so copying it marshal
+order_copy = order.to_json
 # deleting rows and columns corresponding to a column with all elements zero
+
 reduced_mat = delete_zero(boolean_matrix.transpose, n, 'col', first, last, order)
-p first
-p last
 
 puts 'reduced matrix: '
 reduced_mat.each do |eq|
@@ -137,59 +95,39 @@ end
 
 # solving the equations in first array
 soln = []
-first.each do |i|
-	cof[i].each do |coefficient|
-		if coefficient.to_f != 0
-			soln << const[i]/coefficient.to_f
-		end
-	end
-end
-p 'first soln'
-p soln
+soln = solve_one_eq(first, cof, const, sums, boolean_matrix, JSON::parse(order_copy), soln)
+
 # remove the deleted equations from the coefficient matrix
-cof_mat = cof
-const_mat = const
-init_mat = init
+cof_json = cof.to_json
+const_json = const.to_json
+init_json = init.to_json
 removed = (first+last).sort
 removed.each_with_index do |v, k|
-	cof_mat.delete_at(v-k)
-	const_mat.delete_at(v-k)
-	init_mat.delete_at(v-k)
+	cof.delete_at(v-k)
+	const.delete_at(v-k)
+	init.delete_at(v-k)
 end
 
-cof_mat = cof_mat.transpose
-removed.each do |i|
-	cof_mat.delete_at(i)
+cof = cof.transpose
+removed.each_with_index do |v, k|
+	cof.delete_at(v-k)
 end
-cof_mat = cof_mat.transpose
-
-puts 'cof_mat matrix: '
-cof_mat.each do |eq|
- p eq
-end
+cof = cof.transpose
 
 # converting into matrix
-cof_mat = Matrix.rows(cof_mat)
-const_mat = Matrix[const_mat].transpose
-init_mat = Matrix[init_mat].transpose
+cof = Matrix.rows(cof)
+const = Matrix[const].transpose
+init = Matrix[init].transpose
 
 # now solving the remaining equations using newton-raphson method
 # f[x(i+1)] = f[x(i)] + J_inv*f[x(0)]
-inv_mat = cof_mat.inverse
-f_x0 = cof_mat*init_mat - const_mat
-x1 = init_mat - inv_mat*f_x0
+inv_mat = cof.inverse
+f_x0 = cof*init - const
+x1 = init - inv_mat*f_x0
 soln = soln + x1.transpose.to_a[0]
-puts 'nr'
-p soln
 
-# solve the equations that are in last array
-last.reverse.each do |i|
-	cof[i].each do |coefficient|
-		if coefficient.to_f != 0
-			soln << const[i]/coefficient.to_f
-		end
-	end
-end
+# solving the equations in last array
+soln = solve_one_eq(last, JSON::parse(cof_json), JSON::parse(const_json), sums, boolean_matrix, JSON::parse(order_copy), soln)
 
 # output
 # occ.each do |eq|
@@ -198,4 +136,4 @@ end
 # p eq
 # end
 puts 'final solution of equations: '
-p soln.map(&:to_f)
+puts soln.map(&:to_f)
