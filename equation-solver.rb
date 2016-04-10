@@ -2,34 +2,44 @@ require 'matrix'
 
 def delete_zero(matrix, n, type, first, last, order)
 	i = 0
-	while(i<n)		
+	to_delete = []
+	max = n
+	while(i<max)		
 		# puts "#{i} #{matrix[i].count('0')}"
 		if matrix[i].count(0) == n
-			matrix.delete_at(i)
-			matrix = matrix.transpose
-			matrix.delete_at(i)
-			matrix = matrix.transpose
 			if type == 'col'
 				first << order[i]
+				to_delete << i
 			else
 				last << order[i]
+				to_delete << i
 			end
+			matrix.delete_at(i)
 			order.delete_at(i)
-			i = -1
-			n -= 1
+			max -= 1
+		else
+			i += 1
 		end
-		i += 1
 	end
-	
+	# zero col corresponding rows are deleted in a different loop as deleting them
+	# in same loop might form additional zero cols which would disturb the order
+	matrix = matrix.transpose
+	to_delete.each do |j|
+		matrix.delete_at(j)
+	end
+	n = max
 	before_rows_deletion = matrix.size
 	# delete r and c corresponding to the rows containing all zeros
-	# if we have jus deleted r and c corresponding to a zero column
+	# if we have just deleted r and c corresponding to a zero column
 	if type == 'col'
-		matrix = delete_zero(matrix.transpose, before_rows_deletion, 'row', first, last, order)
+		matrix = delete_zero(matrix, before_rows_deletion, 'row', first, last, order)
 	end
 	# again check for column deletion
+	# currently the matrix is in its transpose form
 	if matrix.size < before_rows_deletion
 		matrix = delete_zero(matrix, matrix.size, 'col', first, last, order)
+	else
+		matrix = matrix.transpose
 	end
 
 	return matrix
@@ -44,7 +54,7 @@ const = []
 # initial guess
 init = []
 # input from file
-input = IO.readlines('sample-input-2.txt')
+input = IO.readlines('sample-input-3.txt')
 n = input[0].to_i
 n.times do |i|
 	cof[i] = input[1+i].split(' ')
@@ -116,7 +126,9 @@ end
 first = []
 last = []
 # deleting rows and columns corresponding to a column with all elements zero
-reduced_mat = delete_zero(boolean_matrix, n, 'col', first, last, order)
+reduced_mat = delete_zero(boolean_matrix.transpose, n, 'col', first, last, order)
+p first
+p last
 
 puts 'reduced matrix: '
 reduced_mat.each do |eq|
@@ -128,20 +140,22 @@ soln = []
 first.each do |i|
 	cof[i].each do |coefficient|
 		if coefficient.to_f != 0
+			puts "#{i} #{coefficient} #{const[i]}"
 			soln << const[i]/coefficient.to_f
 		end
 	end
 end
-
+p 'first soln'
+p soln
 # remove the deleted equations from the coefficient matrix
 cof_mat = cof
 const_mat = const
 init_mat = init
-removed = first+last
-removed.each do |i|
-	cof_mat.delete_at(i)
-	const_mat.delete_at(i)
-	init_mat.delete_at(i)
+removed = (first+last).sort
+removed.each_with_index do |v, k|
+	cof_mat.delete_at(v-k)
+	const_mat.delete_at(v-k)
+	init_mat.delete_at(v-k)
 end
 
 cof_mat = cof_mat.transpose
@@ -149,6 +163,7 @@ removed.each do |i|
 	cof_mat.delete_at(i)
 end
 cof_mat = cof_mat.transpose
+
 puts 'cof_mat matrix: '
 cof_mat.each do |eq|
  p eq
@@ -163,9 +178,10 @@ init_mat = Matrix[init_mat].transpose
 # f[x(i+1)] = f[x(i)] + J_inv*f[x(0)]
 inv_mat = cof_mat.inverse
 f_x0 = cof_mat*init_mat - const_mat
-# p inv_mat
 x1 = init_mat - inv_mat*f_x0
 soln = soln + x1.transpose.to_a[0]
+puts 'nr'
+p soln
 
 # solve the equations that are in last array
 last.reverse.each do |i|
